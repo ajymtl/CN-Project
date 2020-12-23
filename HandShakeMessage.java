@@ -17,8 +17,8 @@ public class HandShakeMessage {
     public static byte[] prepareHandshakeMessage (Integer myId) throws Exception {
         byte[] handshakeMessage = new byte[MessageLength];
         byte[] headerInBytes = Header.getBytes(Encoding);
-        byte[] zeroStringInBytes = ByteBuffer.allocate(PeerIdSize).putInt(myId).array();
-        byte[] myIdInBytes = ByteBuffer.allocate(ZeroPaddingSize).putInt(0).array();
+        byte[] zeroStringInBytes = ByteBuffer.allocate(ZeroPaddingSize).putInt(0).array();
+        byte[] myIdInBytes = ByteBuffer.allocate(PeerIdSize).putInt(myId).array();
         ByteBuffer buffer = ByteBuffer.wrap(handshakeMessage);
         buffer.put(headerInBytes);
         buffer.put(zeroStringInBytes);
@@ -27,14 +27,15 @@ public class HandShakeMessage {
     }
 
     public static Integer decodeHandshakeMessage (byte[] byteArray) throws Exception {
-        byte[] headerInBytes = Arrays.copyOfRange(byteArray, 0, 17);
+        byte[] headerInBytes = Arrays.copyOfRange(byteArray, 0, 18);
         String header = new String(headerInBytes, Encoding);
-        if (header != Header) {
+        if (!header.equals(Header)) {
             logger.log(Level.SEVERE, "Handshake Header Wrong. Unauthorized.");
             throw new Exception();
         }
-        byte[] peerIdInBytes = Arrays.copyOfRange(byteArray, 28, 31);
-        return Integer.parseInt(new String(peerIdInBytes, Encoding));
+        byte[] peerIdInBytes = Arrays.copyOfRange(byteArray, 28, 32);
+        return ByteBuffer.wrap(peerIdInBytes).getInt();
+        //return Integer.parseInt(new String(peerIdInBytes, Encoding));
     }
 
 }

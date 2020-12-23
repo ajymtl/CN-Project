@@ -5,13 +5,20 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.Arrays;
 import java.util.List;
 import java.util.TreeMap;
 import java.util.Collection;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.logging.FileHandler;
 import java.util.ArrayList;
+import java.io.File;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.nio.file.Path;
 
 public class peerProcess {
 
@@ -25,7 +32,8 @@ public class peerProcess {
     private final Integer fileSize;
     private final Integer pieceSize;
     private final Integer myId;
-
+    public static volatile Map<Integer, byte[]> content = new HashMap<>();
+    public static volatile Map<Integer, Map<Integer, Boolean>> peerContent = new HashMap<>();
     private Map<Integer, Peer> peerMap;
 
     static Logger logger = Logger.getLogger(peerProcess.class.getName());
@@ -52,7 +60,7 @@ public class peerProcess {
                 Integer peerId = Integer.parseInt(parts[0]);
                 String ipAddress = parts[1];
                 Integer portId = Integer.parseInt(parts[2]);
-                Boolean hasFile = (parts[3] == "0") ? false :true;
+                Boolean hasFile = (parts[3].equals("0")) ? false :true;
                 this.peerMap.put(peerId, new Peer(peerId, ipAddress, portId, hasFile));
                 line = reader.readLine();
             }
@@ -80,11 +88,35 @@ public class peerProcess {
         ServerSocket serverSocket = null;
         Boolean listenFirst = false;
         Worker worker;
+        Integer tempId = -1;
         for (Integer id: peersList) {
-            if (id == this.myId) {
-                serverSocket = new ServerSocket(this.myId);
+            if (id.equals(this.myId)) {
+                serverSocket = new ServerSocket(peerMap.get(this.myId).port);
                 listenFirst = true;
+                if (peerMap.get(this.myId).hasFile == true) {
+                    File file = new File(this.myId + "/" + this.fileName);
+                    Path path = Paths.get(file.getAbsolutePath());
+                    byte[] temp = Files.readAllBytes(path);
+                    int chunks = this.fileSize/this.pieceSize;
+                    if (this.fileSize%this.pieceSize!=0) {
+                        chunks = chunks + 1;
+                    }
+                    int start = 0;
+                    int end = 0;
+                    for (int k=0; k<chunks; k++) {
+                        start = end;
+                        if (k != chunks-1) {
+                            end = end + pieceSize;
+                        } else {
+                            end = temp.length;
+                        }
+                        content.put(k, Arrays.copyOfRange(temp, start, end));
+                    }
+                    System.out.println("length " + content.size());
+                }
                 continue;
+            } else {
+                peerContent.put(id, new HashMap<Integer, Boolean>());
             }
             if (!listenFirst) {
                 worker = new Worker(this.myId, id, Integer.toString(id), this.peerMap,
@@ -94,15 +126,18 @@ public class peerProcess {
                 // the iterator id doesn't matter here because we can't be sure whose connection request is accepted first.
                 Socket socket = serverSocket.accept();
                 Integer peerId = findPeerId(socket.getInetAddress().toString());
-                worker = new Worker(socket, this.myId, peerId, Integer.toString(peerId), this.peerMap,
+                worker = new Worker(socket, this.myId, tempId, Integer.toString(tempId), this.peerMap,
                 this.preferredNeighborCount, this.unchokingInteval, this.optimisticUnchokingInterval,
                         this.fileName, this.fileSize, this.pieceSize);
+                tempId = tempId - 1;
             }
             worker.start();
         }
     }
 
     public static void main(String[] args) throws Exception {
+        //FileHandler fileHandler = new FileHandler("app" + Integer.parseInt(args[0]) + ".log", true);
+        //logger.addHandler(fileHandler);
         List<String> commonData = new ArrayList<>();
         try {
             BufferedReader reader = new BufferedReader(new FileReader(commonConfig));

@@ -7,12 +7,12 @@ import java.util.logging.Level;
 
 public class startRemotePeers {
 
-    private static final String commandFormat = "ssh %s@%s cd project; java peerProcess %s";
+    private static final String commandFormat = "ssh %s@%s cd Project; java peerProcess %s ";
     private static final String peerInfoConfig = "PeerInfo.cfg";
     private static final String userName = "ajmittal";
     private static final String whiteSpaceRegex = "\\s+";
 
-    Logger logger = Logger.getLogger(peerProcess.class.getName());
+    static Logger logger = Logger.getLogger(startRemotePeers.class.getName());
 
     public void start() {
         logger.log(Level.INFO,"Starting peer processes ...");
@@ -24,11 +24,13 @@ public class startRemotePeers {
                 String peerId = parts[0];
                 String ipAddress = parts[1];
                 String command = String.format(commandFormat, userName, ipAddress, peerId);
-                logger.log(Level.INFO, "Starting peerProcess with peerId: %s\n", peerId);
+                command = command +  ">>& " + peerId + ".log";
+                logger.log(Level.INFO, "Starting peerProcess with peerId:" + peerId);
+                logger.log(Level.INFO, command);
                 Runtime.getRuntime().exec(command);
                 line = reader.readLine();
             }
-            logger.log(Level.SEVERE, "Successfully started peer processes.");
+            logger.log(Level.INFO, "Successfully started peer processes.");
         } catch (FileNotFoundException e) {
             logger.log(Level.SEVERE, "File not found: PeerInfo.cfg.");
         } catch (IOException e) {

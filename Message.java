@@ -28,7 +28,7 @@ public class Message {
     public static List<String> NoPayLoadTypes = Arrays.asList("choke", "unchoke", "interested", "not interested");
     public static List<String> PieceIndexTypes = Arrays.asList("have", "request");
 
-    private static byte[] intToByteArray(Integer length, Integer value) {
+    public static byte[] intToByteArray(Integer length, Integer value) {
         return ByteBuffer.allocate(length).putInt(value).array();
     }
 
@@ -38,13 +38,35 @@ public class Message {
     }
 
     public static Integer extractMessageLength(byte[] byteArray) {
-        return convertByteArrayToInt(Arrays.copyOfRange(byteArray, 0, 3));
+        return convertByteArrayToInt(Arrays.copyOfRange(byteArray, 0, 4));
+    }
+
+    public static String extractMessageType(byte byt) {
+        Integer index = 0;
+        for (int i=0; i<8; i++) {
+            if ((byt & (1 << (7-i))) != 0) {
+                index = i;
+            }
+        }
+        for (String key: MessageTypeMap.keySet()) {
+            if (MessageTypeMap.get(key) == index) {
+                return key;
+            }
+        }
+        return "";
     }
 
     public static String extractMessageType(byte[] byteArray) throws Exception {
-        Integer messageTypeInt = convertByteArrayToInt(Arrays.copyOfRange(byteArray, 4, 4));
+        byte[] bytes = Arrays.copyOfRange(byteArray, 4, 5);
+        Integer index = 0;
+        for (int i=0; i<8; i++) {
+            if ((bytes[0] & (1 << (7-i))) != 0) {
+            //if (bytes[0][i]&1 == 1) {
+                index = i;
+            }
+        }
         for (String key: MessageTypeMap.keySet()) {
-            if (MessageTypeMap.get(key) == messageTypeInt) {
+            if (MessageTypeMap.get(key) == index) {
                 return key;
             }
         }
@@ -56,11 +78,13 @@ public class Message {
         Integer messageLength = (message == null) ? MessageTypeSize : message.length + MessageTypeSize;
         byte[] messageLengthInBytes = intToByteArray(MessageLengthSize, messageLength);
         Integer finalMessageLength = messageLength + MessageLengthSize;
-        byte[] messageTypeInBytes = intToByteArray(MessageTypeSize, MessageTypeMap.get(messageType));
+        StringBuilder messageTypeString = new StringBuilder("00000000");
+        messageTypeString.setCharAt(MessageTypeMap.get(messageType), '1');
+        byte messageTypeByte = Byte.parseByte(messageTypeString.toString(), 2);
         byte[] fullMessage = new byte[finalMessageLength];
         ByteBuffer buffer = ByteBuffer.wrap(fullMessage);
         buffer.put(messageLengthInBytes);
-        buffer.put(messageTypeInBytes);
+        buffer.put(messageTypeByte);
         if (message != null) {
             buffer.put(message);
         }
